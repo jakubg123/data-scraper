@@ -40,7 +40,7 @@ puppeteer.launch({
     }
 
 
-    await page.waitForXPath('//*[@id="body"]/div/div/div[3]/div/section/div[5]', {timeout: 100000})
+    await page.waitForSelector('div.category-list-body', {timeout: 100000})
 
     const products = await page.$$('.cat-prod-row');
 
@@ -67,13 +67,15 @@ puppeteer.launch({
                 product
             );
 
+            const cleanPriceValue = priceValue.replace(/[^\d]/g, '');
+
             const pricePenny = await page.evaluate(
                 el => el.querySelector("span.price-format.nowrap > span > span.penny").textContent,
                 product
             );
             const cleanPricePenny = pricePenny.replace(/,/g, '');
 
-            price = parseFloat(`${priceValue}.${cleanPricePenny}`);
+            price = parseFloat(`${cleanPriceValue}.${cleanPricePenny}`);
         } catch (error) {
             console.error("Error extracting product price:", error.message);
         }
@@ -83,10 +85,11 @@ puppeteer.launch({
                 el => el.querySelector("div.prod-review > span > span.product-score").textContent,
                 product
             );
-            rating = parseFloat(rating.replace(/,/g, '.'));
+            rating = parseFloat(rating.replace(/,/g, '.')) || 0;
 
         } catch (error) {
             console.error("Error extracting rating:", error.message);
+            console.log(title)
         }
 
         try {
@@ -94,10 +97,12 @@ puppeteer.launch({
                 el => el.querySelector("div.prod-review > span > span.prod-review__qo > a").textContent,
                 product
             );
-            reviewsNumber = parseFloat(reviewsNumber.replace(/,/g, '.'));
+            reviewsNumber = parseInt(reviewsNumber.replace(/,/g, '')) || 0;
 
         } catch (error) {
             console.error("Error extracting reviewsNumber:", error.message);
+            console.log(title)
+
         }
 
         items.push(new Product(title, price, rating, reviewsNumber));
