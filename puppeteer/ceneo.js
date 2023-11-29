@@ -49,8 +49,8 @@ puppeteer.launch({
     for (const product of products) {
         let title = "Null"
         let price = null;
-        let rating = null
-        let reviewsNumber = null
+        let rating =0
+        let reviewsNumber = 0
             // strong > a > span
         try {
             title = await page.evaluate(
