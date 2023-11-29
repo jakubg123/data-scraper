@@ -29,6 +29,26 @@ puppeteer.launch({
         } catch (error) {
             console.error("Error extracting product title:", error.message);
         }
+        try {
+            const price = await page.evaluate(
+                el => el.querySelector("strong > a > span").textContent,
+                product
+            );
+            items.push(new Product(title));
+            console.log(title);
+        } catch (error) {
+            console.error("Error extracting product title:", error.message);
+        }
+        try {
+            const title = await page.evaluate(
+                el => el.querySelector("strong > a > span").textContent,
+                product
+            );
+            items.push(new Product(title));
+            console.log(title);
+        } catch (error) {
+            console.error("Error extracting product title:", error.message);
+        }
     }
 
     console.log(items);
@@ -37,8 +57,10 @@ puppeteer.launch({
 });
 
 class Product {
-    constructor(title) {
+    constructor(title, price, rating) {
         this.title = title;
+        this.price = price;
+        this.rating = rating;
     }
 }
 
