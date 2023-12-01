@@ -37,6 +37,13 @@ async function getCollectionSize(collectionPath){
 
 }
 
+async function listAllCollections() {
+    const collections = await firestore.listCollections();
+    collections.forEach(collection => {
+        console.log('Found collection with id:', collection.id);
+    });
+}
+
 async function getAllDocuments(collectionPath) {
     const collectionRef = firestore.collection(collectionPath);
     const dbRecords = await collectionRef.get();
