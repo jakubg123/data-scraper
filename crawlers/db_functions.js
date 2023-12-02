@@ -1,15 +1,16 @@
 const {firestore, rl} = require('./data');
+exports.createCollection = createCollection;
 
 async function deleteCollection(collectionName, batchSize) {
     const exists = await collectionExists(collectionName);
 
     if (exists) {
-    const collectionRef = firestore.collection(collectionName);
-    const query = collectionRef.limit(batchSize);
+        const collectionRef = firestore.collection(collectionName);
+        const query = collectionRef.limit(batchSize);
 
-    return new Promise((resolve, reject) => {
-        deleteDocuments(query, batchSize, resolve).catch(reject);
-    });
+        return new Promise((resolve, reject) => {
+            deleteDocuments(query, batchSize, resolve).catch(reject);
+        });
     } else {
         console.log(`Invalid collection name '${collectionName}'`);
     }
@@ -114,44 +115,19 @@ async function getCollectionID() {
 }
 
 async function createCollection() {
-    console.log("Create collection if it doesn't exist");
-
-    const collectionName = await getCollectionID();
+    let collectionName = await getCollectionID();
     if (collectionName === null) {
+        collectionName = await new Promise((resolve) => {
+            rl.question("Insert new collection name:", (answer) => {
+                rl.close();
+                resolve(answer);
+            });
+        });
 
-    }
-
-    const collections = await firestore.listCollections();
-    const collectionExists = collections.some(collection => collection.id === collectionName);
-
-    if (collectionExists) {
-        console.log(`Collection '${collectionName}' exists.`);
+        console.log(`Collection reference prepared for '${collectionName}'`);
     } else {
-        await firestore.collection(collectionName.toString()).doc('dummyDoc').set({created: true});
-        console.log(`Collection '${collectionName}' created.`);
+        console.log(`Using existing collection '${collectionName}'`);
     }
+
+    return collectionName;
 }
-
-const collectionPath = "data-scraper";
-const batchSize = 300;
-
-async function main() {
-    try {
-        console.log("Listing all collections:");
-        await listAllCollections();
-
-
-        console.log("Deleting collection");
-        deleteCollection(collectionPath, batchSize).then(() => {
-            console.log("Collection deleted");
-        })
-
-
-    } catch (error) {
-        console.error('Error:', error);
-    } finally {
-        rl.close();
-    }
-}
-
-main();

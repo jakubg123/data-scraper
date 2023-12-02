@@ -1,21 +1,17 @@
 const puppeteer = require('puppeteer-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
-const url = require("url");
-const {rl, firestore} = require('./data.js');
-
+const { rl, firestore } = require('./data.js');
+const db = require('./db_functions.js');
 
 class Product {
-    constructor(title, price, rating, reviewsNumber, link) {
+    constructor(title, price, link) {
         this.title = title;
         this.price = price;
         this.link = link;
     }
 }
 
-
-const collectionReference = firestore.collection('data-scraper');
-
-async function insert(productData) {
+async function insert(productData, collectionReference) {
     const documentRef = collectionReference.doc();
     try {
         await documentRef.set(productData);
@@ -42,32 +38,30 @@ async function search(page, searchPhrase) {
     return page.$$('.cat-prod-row');
 }
 
+async function main() {
+    puppeteer.use(stealth);
+    const browser = await puppeteer.launch({
+        headless: false,
+        defaultViewport: null,
+        userDataDir: "./tmp"
+    });
 
-stealth.onBrowser = () => {
-};
-puppeteer.use(stealth);
-puppeteer.launch({
-    headless: false,
-    defaultViewport: false,
-    userDataDir: "./tmp"
-}).then(async browser => {
-    const page = await browser.newPage()
+    const page = await browser.newPage();
     const searchPhrase = process.argv[2];
-
 
     if (!searchPhrase) {
         console.error('Search phrase missing');
-        process.exit(1);
+        await browser.close();
+        return;
     }
+
+
+    const collectionName = await db.createCollection();
+    const collectionReference = firestore.collection(collectionName);
 
     const products = await search(page, searchPhrase);
 
-
     for (const product of products) {
-        let title = "Null"
-        let price = null;
-        let link = "Null"
-        // strong > a > span
         const productData = await page.evaluate(product => {
             const titleElement = product.querySelector("strong > a > span");
             const priceElement = product.querySelector("span.price-format.nowrap > span > span.value");
@@ -76,14 +70,19 @@ puppeteer.launch({
 
             return {
                 title: titleElement ? titleElement.textContent : "Null",
-                price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')) : null,
+                price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') +
+                    '.' + pennyElement.textContent.replace(/,/g, '')) : null,
                 link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
             };
         }, product);
 
-        await insert(productData);
 
+
+        await insert(productData, collectionReference);
     }
+
     await browser.close();
-    process.exit(0);
-});
+}
+
+
+main();
