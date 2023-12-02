@@ -1,22 +1,16 @@
 const puppeteer = require('puppeteer-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const url = require("url");
-const firestore = require('./data.js');
+const {rl, firestore} = require('./data.js');
 
-stealth.onBrowser = () => {
-};
-puppeteer.use(stealth);
 
 class Product {
     constructor(title, price, rating, reviewsNumber, link) {
         this.title = title;
         this.price = price;
-        this.rating = rating;
-        this.reviewsNumber = reviewsNumber;
         this.link = link;
     }
 }
-
 
 
 const collectionReference = firestore.collection('data-scraper');
@@ -44,11 +38,14 @@ async function search(page, searchPhrase) {
         await searchButton.click();
     }
 
-    await page.waitForSelector('div.category-list-body', {timeout: 100000});
+    await page.waitForSelector('div.category-list-body', {timeout: 20000});
     return page.$$('.cat-prod-row');
 }
 
 
+stealth.onBrowser = () => {
+};
+puppeteer.use(stealth);
 puppeteer.launch({
     headless: false,
     defaultViewport: false,
@@ -66,27 +63,20 @@ puppeteer.launch({
     const products = await search(page, searchPhrase);
 
 
-
     for (const product of products) {
         let title = "Null"
         let price = null;
-        let rating = 0
-        let reviewsNumber = 0
         let link = "Null"
         // strong > a > span
         const productData = await page.evaluate(product => {
             const titleElement = product.querySelector("strong > a > span");
             const priceElement = product.querySelector("span.price-format.nowrap > span > span.value");
             const pennyElement = product.querySelector("span.price-format.nowrap > span > span.penny");
-            const ratingElement = product.querySelector("div.prod-review > span > span.product-score");
-            const reviewsNumberElement = product.querySelector("div.prod-review > span > span.prod-review__qo > a");
             const linkElement = product.querySelector("a.go-to-product");
 
             return {
                 title: titleElement ? titleElement.textContent : "Null",
                 price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')) : null,
-                rating: ratingElement ? parseFloat(ratingElement.textContent.replace(/,/g, '.')) : 0,
-                reviewsNumber: reviewsNumberElement ? parseInt(reviewsNumberElement.textContent.replace(/,/g, '')) : 0,
                 link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
             };
         }, product);
@@ -94,10 +84,6 @@ puppeteer.launch({
         await insert(productData);
 
     }
-
-
     await browser.close();
+    process.exit(0);
 });
-
-
-

@@ -1,11 +1,18 @@
-const firestore = require('./data.js');
-async function deleteCollection(collectionPath, batchSize) {
-    const collectionRef = firestore.collection(collectionPath);
+const {firestore, rl} = require('./data');
+
+async function deleteCollection(collectionName, batchSize) {
+    const exists = await collectionExists(collectionName);
+
+    if (exists) {
+    const collectionRef = firestore.collection(collectionName);
     const query = collectionRef.limit(batchSize);
 
     return new Promise((resolve, reject) => {
         deleteDocuments(query, batchSize, resolve).catch(reject);
     });
+    } else {
+        console.log(`Invalid collection name '${collectionName}'`);
+    }
 }
 
 async function deleteDocuments(query, batchSize, resolve) {
@@ -28,28 +35,17 @@ async function deleteDocuments(query, batchSize, resolve) {
     });
 }
 
-async function getCollectionSize(collectionPath){
-    const collectionRef = firestore.collection(collectionPath);
-    const dbRecords = await collectionRef.get();
-
-    return dbRecords.size;
-
-
-}
-
-async function listAllCollections() {
-    const collections = await firestore.listCollections();
-    collections.forEach(collection => {
-        console.log('Found collection with id:', collection.id);
-    });
-}
-
-async function getAllDocuments(collectionPath) {
-    const collectionRef = firestore.collection(collectionPath);
+async function getAllDocuments(collectionName) {
+    const exists = await collectionExists(collectionName);
+    if (!exists) {
+        console.log(`Invalid collection name '${collectionName}'`);
+        return;
+    }
+    const collectionRef = firestore.collection(collectionName);
     const dbRecords = await collectionRef.get();
 
     if (dbRecords.empty) {
-        console.log('No documents.');
+        console.log('No documents in the collection.');
         return;
     }
 
@@ -58,17 +54,104 @@ async function getAllDocuments(collectionPath) {
     });
 }
 
-const collectionPath = 'data-scraper';
-batchSize = 300;
 
-getCollectionSize(collectionPath)
-    .then(count => console.log(`Number of documents in '${collectionPath}': ${count}`))
+async function getCollectionSize(collectionName) {
+    const exists = await collectionExists(collectionName)
+    if (exists) {
+        const collectionRef = firestore.collection(collectionName);
+        const dbRecords = await collectionRef.get();
+        return dbRecords.size;
+    } else {
+        console.log(`Invalid collection name:'${collectionName}'`);
+    }
+
+}
+
+async function listAllCollections() {
+    const collections = await firestore.listCollections();
+    collections.forEach(collection => {
+        console.log('Collection:', collection.id);
+    });
+}
+
+async function collectionExists(collectionID) {
+    const collectionRef = firestore.collection(collectionID);
+    const dbRecords = await collectionRef.limit(1).get();
+    return !dbRecords.empty;
+}
+
+async function getAllCollectionsAndCount() {
+    try {
+        const collections = await firestore.listCollections();
+        const numberOfCollections = collections.length;
+        console.log(`Total number of collections: ${numberOfCollections}`);
+
+        return numberOfCollections;
+    } catch (error) {
+        console.error(error);
+    }
+}
 
 
-getAllDocuments(collectionPath)
-    .then(() => console.log('All records retrieved'))
+async function getCollectionID() {
+    const collections = await firestore.listCollections();
+    collections.forEach((collection, index) => {
+        console.log(`${collection.id}`);
+    });
 
-deleteCollection(collectionPath, batchSize)
-    .then(() => console.log('Collection deleted'))
+    const collectionName = await new Promise((resolve) => {
+        rl.question('Choose collection: ', (answer) => {
+            resolve(answer);
+        });
+    });
+
+    if (collections.some(collection => collection.id === collectionName)) {
+        return collectionName;
+    } else {
+        console.log('Collection not found.');
+        return null;
+    }
+}
+
+async function createCollection() {
+    console.log("Create collection if it doesn't exist");
+
+    const collectionName = await getCollectionID();
+    if (collectionName === null) {
+
+    }
+
+    const collections = await firestore.listCollections();
+    const collectionExists = collections.some(collection => collection.id === collectionName);
+
+    if (collectionExists) {
+        console.log(`Collection '${collectionName}' exists.`);
+    } else {
+        await firestore.collection(collectionName.toString()).doc('dummyDoc').set({created: true});
+        console.log(`Collection '${collectionName}' created.`);
+    }
+}
+
+const collectionPath = "data-scraper";
+const batchSize = 300;
+
+async function main() {
+    try {
+        console.log("Listing all collections:");
+        await listAllCollections();
 
 
+        console.log("Deleting collection");
+        deleteCollection(collectionPath, batchSize).then(() => {
+            console.log("Collection deleted");
+        })
+
+
+    } catch (error) {
+        console.error('Error:', error);
+    } finally {
+        rl.close();
+    }
+}
+
+main();
