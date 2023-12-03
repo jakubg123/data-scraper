@@ -6,12 +6,23 @@ const {getAllCollectionsAndCount} = require("./db_functions");
 const {getCollectionSize} = require('./db_functions')
 
 class Product {
-    constructor(title, price, link) {
+    constructor(title, price, link, date) {
         this.title = title;
         this.price = price;
         this.link = link;
+        this.date = date;
     }
 }
+
+function getCurrentDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
 
 async function insert(productData, collectionReference) {
     const documentRef = collectionReference.doc();
@@ -47,6 +58,7 @@ async function main() {
         userDataDir: "./tmp"
     });
 
+
     const page = await browser.newPage();
     const searchPhrase = process.argv[2];
 
@@ -68,7 +80,10 @@ async function main() {
     const collectionName = await db.createCollection();
     const collectionReference = firestore.collection(collectionName);
 
+
     let hasNextPage = true;
+
+    const currentDate = getCurrentDate();
 
     while (hasNextPage) {
         let products = await search(page);
@@ -83,9 +98,11 @@ async function main() {
                 return {
                     title: titleElement ? titleElement.textContent.trim() : "Null",
                     price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')) : null,
-                    link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
+                    link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null",
                 };
             });
+
+            productData.date = currentDate;
 
             await insert(productData, collectionReference);
         }
@@ -99,4 +116,6 @@ async function main() {
     await browser.close();
 }
 
-main();
+main().then(()=>{
+    console.log("Done");
+})

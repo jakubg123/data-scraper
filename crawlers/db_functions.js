@@ -38,6 +38,22 @@ async function deleteDocuments(query, batchSize, resolve) {
     });
 }
 
+async function deleteAllCollections() {
+    const collections = await firestore.listCollections();
+
+    for (const collection of collections) {
+        console.log(`Deleting collection: ${collection.id}`);
+
+        const documents = await collection.listDocuments();
+        const deletePromises = documents.map(doc => doc.delete());
+        await Promise.all(deletePromises);
+
+        console.log(`Deleted collection: ${collection.id}`);
+    }
+
+    console.log('All collections have been deleted.');
+}
+
 async function getAllDocuments(collectionName) {
     const exists = await collectionExists(collectionName);
     if (!exists) {
@@ -97,23 +113,25 @@ async function getAllCollectionsAndCount() {
 
 
 async function getCollectionID() {
-    const collections = await firestore.listCollections();
-    collections.forEach((collection, index) => {
-        console.log(`${collection.id}`);
-    });
-
-    const collectionName = await new Promise((resolve) => {
-        rl.question('Choose collection: ', (answer) => {
-            resolve(answer);
+    const collectionCount = await getAllCollectionsAndCount();
+    if (collectionCount !== 0) {
+        const collections = await firestore.listCollections();
+        collections.forEach((collection, index) => {
+            console.log(`${collection.id}`);
         });
-    });
 
-    if (collections.some(collection => collection.id === collectionName)) {
-        return collectionName;
-    } else {
-        console.log('Collection not found.');
-        return null;
+        const collectionName = await new Promise((resolve) => {
+            rl.question('Choose collection: ', (answer) => {
+                resolve(answer);
+            });
+        });
+
+        if (collections.some(collection => collection.id === collectionName)) {
+            return collectionName;
+        }
+
     }
+    return null;
 }
 
 async function createCollection() {
@@ -133,3 +151,6 @@ async function createCollection() {
 
     return collectionName;
 }
+
+
+deleteAllCollections();
