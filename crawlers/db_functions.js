@@ -1,5 +1,7 @@
 const {firestore, rl} = require('./data');
 exports.createCollection = createCollection;
+exports.getAllCollectionsAndCount = getAllCollectionsAndCount;
+exports.getCollectionSize = getCollectionSize;
 
 async function deleteCollection(collectionName, batchSize) {
     const exists = await collectionExists(collectionName);

@@ -1,7 +1,9 @@
 const puppeteer = require('puppeteer-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
-const { rl, firestore } = require('./data.js');
+const { firestore } = require('./data.js');
 const db = require('./db_functions.js');
+const {getAllCollectionsAndCount} = require("./db_functions");
+const {getCollectionSize} = require('./db_functions')
 
 class Product {
     constructor(title, price, link) {
@@ -15,27 +17,26 @@ async function insert(productData, collectionReference) {
     const documentRef = collectionReference.doc();
     try {
         await documentRef.set(productData);
-        console.log(`${documentRef.id}`);
+        console.log(`Document written with ID: ${documentRef.id}`);
     } catch (error) {
         console.error(`Error writing to document: ${documentRef.id}`, error);
     }
 }
 
-async function search(page, searchPhrase) {
-    const ceneoUrl = 'https://www.ceneo.pl';
-
-    await page.goto(ceneoUrl);
-    await page.waitForXPath('//*[@id="form-head-search-q"]');
-    await page.type('#form-head-search-q', searchPhrase);
-
-    const searchButtonXPath = '/html/body/div[2]/header/div[2]/div[2]/form/button';
-    const [searchButton] = await page.$x(searchButtonXPath);
-    if (searchButton) {
-        await searchButton.click();
-    }
-
+async function search(page) {
     await page.waitForSelector('div.category-list-body', {timeout: 20000});
     return page.$$('.cat-prod-row');
+}
+
+async function getNextSite(page) {
+    const nextPageButton = await page.$('a.pagination__item.pagination__next');
+    if (nextPageButton) {
+        await nextPageButton.click();
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        return true;
+    } else {
+        return false;
+    }
 }
 
 async function main() {
@@ -55,34 +56,47 @@ async function main() {
         return;
     }
 
+    await page.goto('https://www.ceneo.pl');
+    await page.waitForXPath('//*[@id="form-head-search-q"]');
+    await page.type('#form-head-search-q', searchPhrase);
+    const searchButtonXPath = '/html/body/div[2]/header/div[2]/div[2]/form/button';
+    const [searchButton] = await page.$x(searchButtonXPath);
+    if (searchButton) {
+        await searchButton.click();
+    }
 
     const collectionName = await db.createCollection();
     const collectionReference = firestore.collection(collectionName);
 
-    const products = await search(page, searchPhrase);
+    let hasNextPage = true;
 
-    for (const product of products) {
-        const productData = await page.evaluate(product => {
-            const titleElement = product.querySelector("strong > a > span");
-            const priceElement = product.querySelector("span.price-format.nowrap > span > span.value");
-            const pennyElement = product.querySelector("span.price-format.nowrap > span > span.penny");
-            const linkElement = product.querySelector("a.go-to-product");
+    while (hasNextPage) {
+        let products = await search(page);
 
-            return {
-                title: titleElement ? titleElement.textContent : "Null",
-                price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') +
-                    '.' + pennyElement.textContent.replace(/,/g, '')) : null,
-                link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
-            };
-        }, product);
+        for (const product of products) {
+            const productData = await product.evaluate(el => {
+                const titleElement = el.querySelector("strong > a > span");
+                const priceElement = el.querySelector("span.price-format.nowrap > span > span.value");
+                const pennyElement = el.querySelector("span.price-format.nowrap > span > span.penny");
+                const linkElement = el.querySelector("a.go-to-product");
 
+                return {
+                    title: titleElement ? titleElement.textContent.trim() : "Null",
+                    price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')) : null,
+                    link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
+                };
+            });
 
+            await insert(productData, collectionReference);
+        }
 
-        await insert(productData, collectionReference);
+        hasNextPage = await getNextSite(page);
     }
+
+    let collectionCount = await getCollectionSize(collectionName);
+    console.log(collectionCount);
 
     await browser.close();
 }
-
 
 main();
