@@ -91,10 +91,22 @@ def clear_collection(collection):
         print(f"collection:{collection} doesn't exist")
 
 
+def print_collection(collection):
+    if check_if_collection_exist(collection):
+        db = firestore.client()
+        documents = db.collection(collection).stream()
+        # Wyświetl dane
+        for document in documents:
+            data = document.to_dict()
+            print(data)
+    else:
+        print(f"collection:{collection} doesn't exist")
+
 if __name__ == "__main__":
     search_value = input("Enter your search: ")
     url = f"https://www.olx.pl/oferty/q-{search_value}/"
     num_pages = 3
+    collection = "new_collection"
     offers = scrape_olx(url, num_pages)
     display_offers(offers)
-    insert_offers(offers, "new_collection")
+    insert_offers(offers, collection)
