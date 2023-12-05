@@ -41,3 +41,4 @@ urllib3==2.1.0
 user-agents==2.2.0
 w3lib==2.1.2
 zope.interface==6.1
+firebase-admin
