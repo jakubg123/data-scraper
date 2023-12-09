@@ -1,11 +1,6 @@
 from playwright.sync_api import sync_playwright
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
-
-cred = credentials.Certificate(
-    f"C:/Users/damai/PycharmProjects/olxscraper/olxscrape-9a1d4-firebase-adminsdk-o6cju-59390a1e49.json")
-firebase_admin.initialize_app(cred)
+from data import *
+from db_functions_py import *
 
 
 class Offer:
@@ -27,25 +22,37 @@ class Offer:
         return Offer(title, price, link)
 
 
-def scrape_olx(url, num_pages):
+def scrape_olx(url):
     with sync_playwright() as p:
 
         browser = p.chromium.launch()
         page = browser.new_page()
-        page.goto(url)
-        page.wait_for_selector('div[data-testid="listing-grid"]')
-        ##add next pages to scrape
-        ##add - avoid not related offers
-        offers_elements = page.locator('div[data-cy="l-card"]').all()
-        print(f"Number of offers: {len(offers_elements)}")
 
         offers_list = []
-        for element in offers_elements:
-            try:
-                offer = Offer.from_element(element)
-                offers_list.append(offer)
-            except Exception as e:
-                print(f"{e}")
+        counter = 0
+        next_page = ""
+        while True:
+            page.goto(url + next_page)
+            page.wait_for_selector('div[data-testid="listing-grid"]')
+
+            offers_elements = page.locator('div[data-cy="l-card"]').all()
+            number_of_offers = [int(word) for word in
+                                page.locator('span[data-testid="total-count"]').inner_text().split() if word.isdigit()]
+            print(f"Number of offers for page {counter}: {len(offers_elements)} or for whole site {number_of_offers}")
+
+            for element in offers_elements:
+                try:
+                    offer = Offer.from_element(element)
+                    offers_list.append(offer)
+                except Exception as e:
+                    print(f"{e}")
+
+            next_page_element = page.locator('a[data-testid="pagination-forward"]')
+            if next_page_element.is_visible():
+                next_url = next_page_element.get_attribute('href')
+                next_page = next_url.split('/')[-1]
+            else:
+                break
 
         browser.close()
         return offers_list
@@ -56,57 +63,11 @@ def display_offers(offers):
         print(f"{index}: {offer}")
 
 
-def insert_offers(offers, collection):
-    if check_if_collection_exist(collection):
-        db = firestore.client()
-        collection_ref = db.collection(collection)
-        for index, offer in enumerate(offers, start=1):
-            data = {
-                'index': index,
-                'title': offer.title,
-                'price': offer.price,
-                'link': offer.link
-            }
-            collection_ref.add(data)
-
-
-def check_if_collection_exist(collection):
-    db = firestore.client()
-    collection_ref = db.collection(collection)
-    if collection_ref.get():
-        return 1
-    else:
-        print(f"collection:{collection} doesn't exist")
-        return 0
-
-
-def clear_collection(collection):
-    if check_if_collection_exist(collection):
-        db = firestore.client()
-        collection_ref = db.collection(collection)
-        document = collection_ref.stream()
-        for data in document:
-            data.reference.delete()
-    else:
-        print(f"collection:{collection} doesn't exist")
-
-
-def print_collection(collection):
-    if check_if_collection_exist(collection):
-        db = firestore.client()
-        documents = db.collection(collection).stream()
-        # Wyświetl dane
-        for document in documents:
-            data = document.to_dict()
-            print(data)
-    else:
-        print(f"collection:{collection} doesn't exist")
-
 if __name__ == "__main__":
     search_value = input("Enter your search: ")
     url = f"https://www.olx.pl/oferty/q-{search_value}/"
-    num_pages = 3
-    collection = "new_collection"
-    offers = scrape_olx(url, num_pages)
+    collection = search_value
+    offers = scrape_olx(url)
     display_offers(offers)
+    clear_collection(collection)
     insert_offers(offers, collection)
