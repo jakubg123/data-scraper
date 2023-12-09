@@ -71,13 +71,18 @@ async function main() {
             if (mainProductElement.link !== "Null") {
                 const newPage = await browser.newPage();
                 await newPage.goto(mainProductElement.link);
-
-                const expander = await page.$('span.link');
-                if (expander !== null) {
-                    await page.click('span.link');
-                } else {
-                    console.log('Element not found');
+                try {
+                    // Use newPage instead of page
+                    const element = await newPage.waitForSelector('#click > div:nth-child(2) > div.show-remaining-offers.card__body.pt-0 > span.link.link--accent.show-remaining-offers__trigger.js_remainingTrigger', { timeout: 4000 });
+                    if (element) {
+                        await element.click();
+                    }
+                } catch (error) {
+                    console.log('Did not find the expander', error.message);
                 }
+
+
+
 
                 let detailedProductsList = [];
 
@@ -86,7 +91,7 @@ async function main() {
                     'section.product-offers.product-offers--standard.js_async-offers-section-standard > ul > li');
 
                 for (const detailed of detailedProducts) {
-                    const productData = await detailed.evaluate((el, mainLink, mainTitle) => {
+                    const productData = await detailed.evaluate((el, mainLink) => {
                         const priceElement = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__price > a > span > span > span.value");
                         const pennyElement = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__price > a > span > span > span.penny");
                         const productOffer = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__offer-details > div.product-offer__product__offer-details__name > a")
@@ -99,7 +104,7 @@ async function main() {
                             companyName: company ? company.textContent.trim().replace("Dane i opinie o ", "").replace(/\.pl$/, "").replace(/\.com$/, "") : "Null"
 
                         };
-                    }, mainProductElement.link, mainProductElement.title);
+                    }, mainProductElement.link);
 
 
                     if (!utils.fieldIsNull(productData)) {
