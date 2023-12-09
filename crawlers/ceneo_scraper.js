@@ -1,28 +1,10 @@
 const puppeteer = require('puppeteer-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
-const { firestore } = require('./data.js');
+const {firestore} = require('./data.js');
 const db = require('./db_functions.js');
 const {getAllCollectionsAndCount} = require("./db_functions");
 const {getCollectionSize} = require('./db_functions')
-
-class Product {
-    constructor(title, price, link, date) {
-        this.title = title;
-        this.price = price;
-        this.link = link;
-        this.date = date;
-    }
-}
-
-function getCurrentDate() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-}
-
+const utils = require('./utils');
 
 async function insert(productData, collectionReference) {
     const documentRef = collectionReference.doc();
@@ -34,21 +16,6 @@ async function insert(productData, collectionReference) {
     }
 }
 
-async function search(page) {
-    await page.waitForSelector('div.category-list-body', {timeout: 20000});
-    return page.$$('.cat-prod-row');
-}
-
-async function getNextSite(page) {
-    const nextPageButton = await page.$('a.pagination__item.pagination__next');
-    if (nextPageButton) {
-        await nextPageButton.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
-        return true;
-    } else {
-        return false;
-    }
-}
 
 async function main() {
     puppeteer.use(stealth);
@@ -83,39 +50,87 @@ async function main() {
 
     let hasNextPage = true;
 
-    const currentDate = getCurrentDate();
+    const currentDate = utils.getCurrentDate();
 
     while (hasNextPage) {
-        let products = await search(page);
+        let products = await utils.search(page, 'div.category-list-body', '.cat-prod-row');
 
         for (const product of products) {
-            const productData = await product.evaluate(el => {
-                const titleElement = el.querySelector("strong > a > span");
-                const priceElement = el.querySelector("span.price-format.nowrap > span > span.value");
-                const pennyElement = el.querySelector("span.price-format.nowrap > span > span.penny");
+            const mainProductElement = await product.evaluate(el => {
                 const linkElement = el.querySelector("a.go-to-product");
+                const titleElement = el.querySelector("strong > a > span");
 
                 return {
-                    title: titleElement ? titleElement.textContent.trim() : "Null",
-                    price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')) : null,
-                    link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null",
+                    title: titleElement ? titleElement.textContent : "Null",
+                    link: linkElement ? 'https://ceneo.pl' + linkElement.getAttribute('href') : "Null"
                 };
+
             });
 
-            productData.date = currentDate;
 
-            await insert(productData, collectionReference);
+            if (mainProductElement.link !== "Null") {
+                const newPage = await browser.newPage();
+                await newPage.goto(mainProductElement.link);
+
+                const expander = await page.$('span.link');
+                if (expander !== null) {
+                    await page.click('span.link');
+                } else {
+                    console.log('Element not found');
+                }
+
+                let detailedProductsList = [];
+
+                let detailedProducts = await utils.search(newPage,
+                    'section.product-offers.product-offers--standard.js_async-offers-section-standard > ul',
+                    'section.product-offers.product-offers--standard.js_async-offers-section-standard > ul > li');
+
+                for (const detailed of detailedProducts) {
+                    const productData = await detailed.evaluate((el, mainLink, mainTitle) => {
+                        const priceElement = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__price > a > span > span > span.value");
+                        const pennyElement = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__price > a > span > span > span.penny");
+                        const productOffer = el.querySelector("div.product-offer__product.js_product-offer__product.js_productName.specific-variant-content > div.product-offer__product__offer-details > div.product-offer__product__offer-details__name > a")
+                        const company = el.querySelector("div.product-offer__details.js_offer-details > div.product-offer__details__toolbar > ul > li.offer-shop-opinions > a")
+
+
+                        return {
+                            price: priceElement && pennyElement ? parseFloat(priceElement.textContent.replace(/[^\d]/g, '') + '.' + pennyElement.textContent.replace(/,/g, '')).toFixed(2) : null,
+                            link: productOffer ? (productOffer.getAttribute('href') !== "#" ? 'https://ceneo.pl' + productOffer.getAttribute('href') : mainLink) : "Null",
+                            companyName: company ? company.textContent.trim().replace("Dane i opinie o ", "").replace(/\.pl$/, "").replace(/\.com$/, "") : "Null"
+
+                        };
+                    }, mainProductElement.link, mainProductElement.title);
+
+
+                    if (!utils.fieldIsNull(productData)) {
+                        detailedProductsList.push(productData);
+                    }
+
+
+
+                }
+
+                const completeProductData = {
+                    mainProduct: mainProductElement,
+                    detailedProducts: detailedProductsList,
+                    date: currentDate
+                };
+
+                await insert(completeProductData, collectionReference);
+
+                await newPage.close();
+
+
+            }
+
         }
 
-        hasNextPage = await getNextSite(page);
+        hasNextPage = await utils.getNextSite(page);
     }
 
-    let collectionCount = await getCollectionSize(collectionName);
-    console.log(collectionCount);
-
-    await browser.close();
+    await page.close()
 }
 
-main().then(()=>{
+main().then(() => {
     console.log("Done");
-})
+});
