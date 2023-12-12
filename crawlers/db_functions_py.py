@@ -15,12 +15,20 @@ def check_if_collection_exist(collection):
         return 0
 
 
-def insert_offers(offers, collection):
+def insert(offer_data, collection):
+    collection_ref = db.collection(collection)
+    data = {
+        'title': offer_data.title,
+        'price': offer_data.price,
+        'link': offer_data.link
+    }
+    collection_ref.add(data)
 
+
+def insert_offers(offers, collection):
     collection_ref = db.collection(collection)
     for index, offer in enumerate(offers, start=1):
         data = {
-            'index': index,
             'title': offer.title,
             'price': offer.price,
             'link': offer.link
