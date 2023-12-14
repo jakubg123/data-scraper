@@ -152,5 +152,3 @@ async function createCollection() {
     return collectionName;
 }
 
-
-deleteAllCollections();

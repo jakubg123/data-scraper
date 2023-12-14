@@ -1,13 +1,14 @@
 from playwright.sync_api import sync_playwright
-from data import *
-from db_functions_py import *
+from db_functions import *
+import sys
 
 
 class Offer:
-    def __init__(self, title, price, link):
+    def __init__(self, title, price, link, provider='olx'):
         self.title = title
         self.price = price
         self.link = link
+        self.provider = provider
 
     def __str__(self):
         return f"Title: {self.title}, Price: {self.price}, Link: {self.link}"
@@ -66,9 +67,9 @@ def display_offers(offers):
 
 
 if __name__ == "__main__":
-    search_value = input("Enter your search: ")
+    search_value = sys.argv[1]
     url = f"https://www.olx.pl/oferty/q-{search_value}/"
     collection = search_value
     offers = scrape_olx(url)
-    clear_collection(collection)
     insert_offers(offers, collection)
+

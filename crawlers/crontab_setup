@@ -1,1 +1,2 @@
-54 19 * * * /home/jakubg/data-scraper/crawlers/crawler_runner.sh >> /home/jakubg/data-scraper/crawlers/log.txt 2>&1
+33 07 * * * /home/jakubg/data-scraper/crawlers/crawler_runner.sh >> /home/jakubg
+/data-scraper/crawlers/log.txt 2>&1

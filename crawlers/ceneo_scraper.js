@@ -20,7 +20,7 @@ async function insert(productData, collectionReference) {
 async function main() {
     puppeteer.use(stealth);
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         defaultViewport: null,
         userDataDir: "./tmp"
     });
@@ -44,8 +44,8 @@ async function main() {
         await searchButton.click();
     }
 
-    const collectionName = await db.createCollection();
-    const collectionReference = firestore.collection(collectionName);
+    // const collectionName = await db.createCollection();
+    const collectionReference = firestore.collection(searchPhrase);
 
 
     let hasNextPage = true;
@@ -72,7 +72,6 @@ async function main() {
                 const newPage = await browser.newPage();
                 await newPage.goto(mainProductElement.link);
                 try {
-                    // Use newPage instead of page
                     const element = await newPage.waitForSelector('#click > div:nth-child(2) > div.show-remaining-offers.card__body.pt-0 > span.link.link--accent.show-remaining-offers__trigger.js_remainingTrigger', { timeout: 4000 });
                     if (element) {
                         await element.click();
@@ -116,8 +115,8 @@ async function main() {
                 }
 
                 const completeProductData = {
-                    mainProduct: mainProductElement,
                     detailedProducts: detailedProductsList,
+                    mainProduct: mainProductElement,
                     date: currentDate
                 };
 
