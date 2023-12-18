@@ -6,8 +6,21 @@ const {getAllCollectionsAndCount} = require("./db_functions");
 const {getCollectionSize} = require('./db_functions')
 const utils = require('./utils');
 
-async function insert(productData, collectionReference) {
-    const documentRef = collectionReference.doc();
+// async function insert(productData, collectionReference) {
+//     const documentRef = collectionReference.doc();
+//     try {
+//         await documentRef.set(productData);
+//         console.log(`Document written with ID: ${documentRef.id}`);
+//     } catch (error) {
+//         console.error(`Error writing to document: ${documentRef.id}`, error);
+//     }
+// }
+
+async function insert(productData, collectionReference, customDocumentId) {
+    const documentRef = customDocumentId
+        ? collectionReference.doc(customDocumentId)
+        : collectionReference.doc();
+
     try {
         await documentRef.set(productData);
         console.log(`Document written with ID: ${documentRef.id}`);
@@ -120,7 +133,9 @@ async function main() {
                     date: currentDate
                 };
 
-                await insert(completeProductData, collectionReference);
+                const customDocumentName = mainProductElement.title + " " + currentDate
+
+                await insert(completeProductData, collectionReference, customDocumentName);
 
                 await newPage.close();
 
