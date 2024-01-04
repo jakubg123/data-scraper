@@ -9,12 +9,7 @@ class Product {
 }
 
 function getCurrentDate() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    return new Date();
 }
 
 function fieldIsNull(productData) {
@@ -36,15 +31,15 @@ async function search(page, waitSelector, getSelector){
     return page.$$(getSelector);
 }
 
-async function getNextSite(page) {
-    const nextPageButton = await page.$('a.pagination__item.pagination__next');
-    if (nextPageButton) {
-        await nextPageButton.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
-        return true;
-    } else {
-        return false;
-    }
-}
+// async function getNextSite(page) {
+//     const nextPageButton = await page.$('a.pagination__item.pagination__next');
+//     if (nextPageButton) {
+//         await nextPageButton.click();
+//         await page.waitForNavigation({ waitUntil: 'networkidle0' });
+//         return true;
+//     } else {
+//         return false;
+//     }
+// }
 
-module.exports = { getCurrentDate, fieldIsNull, sleep, search, getNextSite };
+module.exports = { getCurrentDate, fieldIsNull, sleep, search};

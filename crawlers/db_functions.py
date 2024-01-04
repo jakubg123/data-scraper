@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 
-cred = credentials.Certificate(f'{os.getenv("HOME")}/data-db-406620-50268306fd82.json')
+cred = credentials.Certificate(f'{os.getenv("HOME")}/data-db-406620-2fe1ab987b4d.json')
 app = firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -86,3 +86,4 @@ def list_All_Collections():
         print(collection_name)
 
     print('All collections have been deleted.')
+
