@@ -1,1 +1,0 @@
-10 12 * * * "$HOME"/data-scraper/crawlers/crawler_runner.sh >> /home/jakubg/data-scraper/crawlers/log.txt 2>&1
