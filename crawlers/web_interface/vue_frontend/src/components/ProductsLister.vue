@@ -4,8 +4,9 @@
     <p>Total items displayed: {{ filteredProductPricings.length }}</p>
     <input type="text" v-model="searchQuery" placeholder="Search products..." class="search-bar"/>
     <ul>
-      <li v-for="pricing in filteredProductPricings" :key="pricing.product_id" class="product-item">
-        <div class="product-details">
+      <li v-for="(pricing, index) in filteredProductPricings" :key="index" class="product-item">
+
+      <div class="product-details">
           <div class="product-name">{{ pricing.product_name }}</div>
           <div class="product-price">actual price: {{ pricing.current_price }}PLN (as of {{
               pricing.scrape_date
@@ -41,7 +42,7 @@ export default {
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
+      const day = String(today.getDate() -1).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
 
