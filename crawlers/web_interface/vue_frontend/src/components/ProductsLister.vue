@@ -1,46 +1,84 @@
 <template>
   <div class="product-list">
     <h1>Products</h1>
-    <input type="text" v-model="searchQuery" placeholder="Search products..." class="search-bar" />
+    <p>Total items displayed: {{ filteredProductPricings.length }}</p>
+    <input type="text" v-model="searchQuery" placeholder="Search products..." class="search-bar"/>
     <ul>
-      <li v-for="pricing in productPricings" :key="pricing.product_name" class="product-item">
-        <div class="product-name">{{ pricing.product_name }}</div>
-        <div class="product-price">{{ pricing.price }} (as of {{ pricing.scrape_date }})</div>
-        <div class="provider">{{pricing.company_name}}</div>
+      <li v-for="pricing in filteredProductPricings" :key="pricing.product_id" class="product-item">
+        <div class="product-details">
+          <div class="product-name">{{ pricing.product_name }}</div>
+          <div class="product-price">actual price: {{ pricing.current_price }}PLN (as of {{
+              pricing.scrape_date
+            }})
+          </div>
+          <div class="provider"> company: {{ pricing.company_name }}</div>
+          <div class="lowest-price"> lowest price available: {{ pricing.lowest_price }} -
+            {{ pricing.lowest_price_date }}
+          </div>
+        </div>
+        <div class="price-difference-indicator">
+          <arrow-indicator :price-difference="pricing.current_price - pricing.lowest_price"></arrow-indicator>
+        </div>
       </li>
     </ul>
   </div>
 </template>
-
-<script setup>
-import { ref, onMounted } from 'vue';
+<script>
+import {ref, computed, onMounted} from 'vue';
 import axios from 'axios';
-import { format } from 'date-fns';
+import ArrowIndicator from "@/components/ArrowIndicator.vue";
 
-const productPricings = ref([]);
+export default {
+  components: {
+    ArrowIndicator
+  },
 
-onMounted(async () => {
-  try {
-    const response = await axios.get('http://localhost:5000/productpricings');
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const yesterday = format(new Date(new Date().setDate(new Date().getDate() - 1)), 'yyyy-MM-dd');
+  setup() {
+    const productPricings = ref([]);
+    const searchQuery = ref('');
 
-    productPricings.value = response.data.productPricings
-        .filter(pricing => pricing.scrape_date === today || pricing.scrape_date === yesterday)
-        .map(pricing => ({
-          ...pricing,
-          price: parseFloat(pricing.price)
-        }))
-        .sort((a, b) => {
-          if (a.product_name < b.product_name) return -1;
-          if (a.product_name > b.product_name) return 1;
+    const getTodayDate = () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
-          return a.price - b.price;
-        });
-  } catch (error) {
-    console.error(error);
+    onMounted(async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/productpricings');
+
+        productPricings.value = response.data.productPricings
+            .map(pricing => ({
+              ...pricing,
+              price: parseFloat(pricing.price)
+            }))
+            .sort((a, b) => {
+              if (a.product_name < b.product_name) return -1;
+              if (a.product_name > b.product_name) return 1;
+
+              return a.price - b.price;
+            });
+      } catch (error) {
+        console.error(error);
+      }
+    });
+
+    const filteredProductPricings = computed(() => {
+      const todayDate = getTodayDate();
+      return productPricings.value
+          .filter(pricing => pricing.product_name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+          .filter(pricing => pricing.scrape_date === todayDate);
+    });
+
+    return {
+      productPricings,
+      searchQuery,
+      filteredProductPricings
+    };
   }
-});
+}
 </script>
 
 <style>
@@ -72,6 +110,9 @@ onMounted(async () => {
   margin-bottom: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  justify-content: space-between;
+  display: flex;
+  align-items: center;
 }
 
 .product-item:hover {
@@ -85,10 +126,7 @@ onMounted(async () => {
   margin: 0;
 }
 
-.product-price {
-  font-size: 16px;
-  color: #888;
-}
+
 .search-bar {
   margin-bottom: 20px;
   padding: 10px;

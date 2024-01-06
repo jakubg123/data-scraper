@@ -52,7 +52,7 @@ def get_products():
 def get_companies():
     try:
         companies = Company.query.all()
-        return jsonify({"companies": [{"name": company.name} for company in companies]}), 200
+        return jsonify({"companies": [{"id": "company.id", "name": company.name} for company in companies]}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -62,50 +62,34 @@ def get_product_pricings():
     try:
         pricings = ProductPricing.query.join(Product, ProductPricing.productid == Product.id) \
             .join(Company, ProductPricing.companyid == Company.id) \
-            .add_columns(Product.name.label("product_name"), Company.name.label("company_name"), ProductPricing.price,
-                         ProductPricing.scrapedate) \
+            .add_columns(Product.name.label("product_name"), Company.name.label("company_name"),
+                         ProductPricing.price, ProductPricing.scrapedate) \
             .all()
 
-        return jsonify({
-            "productPricings": [
-                {
-                    "product_name": pricing.product_name,
-                    "company_name": pricing.company_name,
-                    "price": str(pricing.ProductPricing.price),
-                    "scrape_date": pricing.ProductPricing.scrapedate.strftime(
-                        '%Y-%m-%d') if pricing.ProductPricing.scrapedate else None
-                }
-                for pricing in pricings
-            ]
-        }), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        product_pricings = []
+        for pricing in pricings:
+            lowest_pricing_record = ProductPricing.query.filter_by(
+                productid=pricing.ProductPricing.productid,
+                companyid=pricing.ProductPricing.companyid
+            ).order_by(ProductPricing.price).first()
 
+            latest_pricing = ProductPricing.query.filter_by(
+                productid=pricing.ProductPricing.productid,
+                companyid=pricing.ProductPricing.companyid
+            ).order_by(ProductPricing.scrapedate.desc()).first()
 
-@app.route('/search', methods=['GET'])
-def search():
-    try:
-        search_term = "Gigabyte"
+            product_pricings.append({
+                "product_id" : pricing.ProductPricing.productid,
+                "company_id" : pricing.ProductPricing.companyid,
+                "product_name": pricing.product_name,
+                "company_name": pricing.company_name,
+                "current_price": str(latest_pricing.price),
+                "lowest_price": str(lowest_pricing_record.price),
+                "lowest_price_date": lowest_pricing_record.scrapedate.strftime('%Y-%m-%d'),
+                "scrape_date": pricing.scrapedate.strftime('%Y-%m-%d')
+            })
 
-        pricings = ProductPricing.query.join(Product, ProductPricing.productid == Product.id) \
-            .join(Company, ProductPricing.companyid == Company.id) \
-            .filter(Product.name.ilike(f"%{search_term}%")) \
-            .add_columns(Product.name.label("product_name"), Company.name.label("company_name"), ProductPricing.price,
-                         ProductPricing.scrapedate) \
-            .all()
-
-        return jsonify({
-            "productPricings": [
-                {
-                    "product_name": pricing.product_name,
-                    "company_name": pricing.company_name,
-                    "price": str(pricing.ProductPricing.price),
-                    "scrape_date": pricing.ProductPricing.scrapedate.strftime(
-                        '%Y-%m-%d') if pricing.ProductPricing.scrapedate else None
-                }
-                for pricing in pricings
-            ]
-        }), 200
+        return jsonify({"productPricings": product_pricings}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
