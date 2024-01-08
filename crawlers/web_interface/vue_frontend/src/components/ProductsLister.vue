@@ -1,4 +1,5 @@
 <template>
+  <SidebarComponent/>
   <div class="product-list">
     <h1>Products</h1>
     <p>Total items displayed: {{ filteredProductPricings.length }}</p>
@@ -28,9 +29,11 @@
 import {ref, computed, onMounted} from 'vue';
 import axios from 'axios';
 import ArrowIndicator from "@/components/ArrowIndicator.vue";
+import SidebarComponent from "@/components/SidebarComponenent.vue";
 
 export default {
   components: {
+    SidebarComponent,
     ArrowIndicator
   },
 
@@ -42,7 +45,7 @@ export default {
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate() -1).padStart(2, '0');
+      const day = String(today.getDate() - 2).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
 

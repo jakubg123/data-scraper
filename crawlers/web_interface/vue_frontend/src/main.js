@@ -3,11 +3,12 @@ import App from './App.vue'
 import { createRouter, createWebHistory } from "vue-router"
 
 import productsView from "./components/ProductsLister.vue";
-import ArrowIndicator from './components/ArrowIndicator.vue';
+import ScrapingComponent from './components/ScrapingComponent.vue';
 
 
 const routes = [
-    { path: "/", component: productsView, ArrowIndicator},
+    { path: "/", component: productsView},
+    { path: "/scraping", component: ScrapingComponent}
 ]
 
 const router = createRouter({

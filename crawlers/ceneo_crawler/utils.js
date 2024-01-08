@@ -31,15 +31,6 @@ async function search(page, waitSelector, getSelector){
     return page.$$(getSelector);
 }
 
-// async function getNextSite(page) {
-//     const nextPageButton = await page.$('a.pagination__item.pagination__next');
-//     if (nextPageButton) {
-//         await nextPageButton.click();
-//         await page.waitForNavigation({ waitUntil: 'networkidle0' });
-//         return true;
-//     } else {
-//         return false;
-//     }
-// }
+
 
 module.exports = { getCurrentDate, fieldIsNull, sleep, search};

@@ -62,8 +62,11 @@ def process_line(line, cursor):
 
 
 def main(file_path):
+    conn = None
+    cursor = None
     try:
-        conn = psycopg2.connect(dbname="postgres", user="postgres", password="postgres")
+        conn = psycopg2.connect(dbname="postgres", user="postgres", password="postgres", host="db")
+
         cursor = conn.cursor()
 
         with open(file_path, 'r') as file:
@@ -72,11 +75,11 @@ def main(file_path):
                     process_line(line, cursor)
                     conn.commit()
                 except Exception as e:
-                    print(f"error: {e}")
+                    print({e})
                     conn.rollback()
 
     except Exception as e:
-        print(f"db connection failed: {e}")
+        print(f"db connection: {e}")
     finally:
         if cursor:
             cursor.close()
